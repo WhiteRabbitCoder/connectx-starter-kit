@@ -134,7 +134,7 @@ def my_tool(obs, cfg):
 
 def my_agent(observation, configuration):
     obs_dict = {"board": list(observation.board), "mark": observation.mark}
-    cfg_dict = {"rows": observation.rows, "cols": configuration.columns, "inarow": configuration.inarow}
+    cfg_dict = {"rows": configuration.rows, "cols": configuration.columns, "inarow": configuration.inarow}
 
     result = my_tool(obs_dict, cfg_dict)
     if result is not None:
