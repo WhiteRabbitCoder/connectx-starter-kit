@@ -79,6 +79,7 @@ def _avoid_dead(obs: dict, cfg: dict):
 
 def _random_valid(obs: dict, cfg: dict):
     from random import choice
+    from arena.board import Board
     board_obj = Board(cfg["rows"], cfg["cols"], cfg["inarow"], obs["board"])
     moves = board_obj.valid_moves()
     return choice(moves) if moves else 0
