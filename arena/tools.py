@@ -86,6 +86,10 @@ def _random_valid(obs: dict, cfg: dict):
 
 
 def apply_tools(obs: dict, cfg: dict, tool_names: List[str], fallback_name: str = "random_valid"):
+    if len(tool_names) > 3:
+        raise ValueError(
+            f"Límite de herramientas superado: se declararon {len(tool_names)}, máximo permitido es 3."
+        )
     tool_map = {t.name: t for t in TOOLS}
     tools_used = [tool_map[name] for name in tool_names if name in tool_map]
 
