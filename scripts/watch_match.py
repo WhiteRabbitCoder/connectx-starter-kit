@@ -1,7 +1,7 @@
-from importlib.util import spec_from_file_location, module_from_spec
-from arena.board import Board
 import sys
 import time
+from importlib.util import spec_from_file_location, module_from_spec
+from arena.board import Board
 
 
 def load_agent(path):
@@ -11,21 +11,56 @@ def load_agent(path):
     return module.my_agent
 
 
-def render_board(board: Board):
+def find_landing_row(board: Board, col: int) -> int:
+    for row in range(board.rows - 1, -1, -1):
+        if board.grid[row * board.cols + col] == 0:
+            return row
+    return -1
+
+
+def render_board(board: Board, falling_col: int = -1, falling_row: int = -1, falling_mark: int = 0) -> str:
     chars = {0: ".", 1: "A", 2: "B"}
-    grid_rows = []
+    lines = []
     for r in range(board.rows):
         row_str = []
         for c in range(board.cols):
-            idx = r * board.cols + c
-            row_str.append(chars[board.grid[idx]])
-        grid_rows.append(" ".join(row_str))
-    print("\n".join(grid_rows))
-    print(" ".join(str(c % 10) for c in range(board.cols)))
-    print()
+            if r == falling_row and c == falling_col:
+                row_str.append(chars[falling_mark])
+            else:
+                row_str.append(chars[board.grid[r * board.cols + c]])
+        lines.append(" ".join(row_str))
+    lines.append(" ".join(str(c) for c in range(board.cols)))
+    lines.append("")
+    return "\n".join(lines)
 
 
-def play_match_verbose(agent1_path, agent2_path, delay=0.6):
+# 6 filas + fila de índices + línea vacía
+BOARD_LINES = 8
+
+
+def print_board(board: Board, falling_col=-1, falling_row=-1, falling_mark=0):
+    print(render_board(board, falling_col, falling_row, falling_mark), end="")
+    sys.stdout.flush()
+
+
+def clear_board():
+    print(f"\033[{BOARD_LINES}A\033[J", end="")
+    sys.stdout.flush()
+
+
+def animate_drop(board: Board, col: int, mark: int, drop_delay: float = 0.06):
+    landing_row = find_landing_row(board, col)
+    if landing_row == -1:
+        return
+
+    for row in range(landing_row + 1):
+        clear_board()
+        print_board(board, falling_col=col, falling_row=row, falling_mark=mark)
+        if row < landing_row:
+            time.sleep(drop_delay)
+
+
+def play_match_verbose(agent1_path, agent2_path, turn_delay=0.4, drop_delay=0.06):
     agent1 = load_agent(agent1_path)
     agent2 = load_agent(agent2_path)
 
@@ -35,14 +70,14 @@ def play_match_verbose(agent1_path, agent2_path, delay=0.6):
     marks = [1, 2]
     current = 0
 
-    print("Partida en vivo")
-    render_board(board)
+    print("Partida en vivo  (A vs B)\n")
+    print_board(board)
 
-    max_turns = board.rows * board.cols
-    for _ in range(max_turns):
+    for _ in range(board.rows * board.cols):
         mark = marks[current]
         player = players[current]
         name = names[current]
+
         obs = board.to_observation(mark)
         config = type("Config", (), {
             "rows": board.rows,
@@ -51,27 +86,29 @@ def play_match_verbose(agent1_path, agent2_path, delay=0.6):
         })()
 
         col = player(obs, config)
-        success = board.drop_piece(col, mark)
 
-        if not success:
-            render_board(board)
-            winner = names[1] if current == 0 else names[0]
-            print(f"Jugador {name} jugó inválido. Pierde.")
+        if col not in board.valid_moves():
+            winner = names[1 - current]
+            print(f"\nJugador {name} jugó inválido (col {col}). Pierde.")
             print(f"Ganador: {winner}")
             return
 
-        render_board(board)
+        animate_drop(board, col, mark, drop_delay)
+        board.drop_piece(col, mark)
 
         if board.check_win(mark):
-            winner = names[current]
-            print(f"Ganador: {winner}")
+            clear_board()
+            print_board(board)
+            print(f"Ganador: {names[current]}")
             return
 
         if board.is_full():
+            clear_board()
+            print_board(board)
             print("Empate")
             return
 
-        time.sleep(delay)
+        time.sleep(turn_delay)
         current = 1 - current
 
 
